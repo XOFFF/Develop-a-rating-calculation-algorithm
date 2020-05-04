@@ -1,0 +1,24 @@
+hours_at_work = float(input("Please, write how many hours will be a workday : "))
+normal_perc_for_job = 60.0 #for example
+normal_perc_for_rest = 40.0 #for example
+employees_points = 0
+
+employees_h_f_job_today = float(input("Please, write how many hours of work employee spent for a workday : "))
+employees_h_f_rest_today = float(input("Please, write how many hours of rest employee spent for a workday : "))
+
+job_perc = employees_h_f_job_today * 100 / hours_at_work
+rest_perc = employees_h_f_rest_today * 100 / hours_at_work
+
+if job_perc >= normal_perc_for_job:
+    employees_points += 2
+else:
+    employees_points += 1
+if rest_perc <= normal_perc_for_rest:
+    employees_points += 2
+else:
+    employees_points += 1
+control_question = input("If an employee did his task, please, write True. Otherwise- False : ")
+if control_question == "True":
+    employees_points += 3
+    
+    print(employees_points)
