@@ -1,109 +1,160 @@
 import json
 import datetime
+
+from pip._vendor import requests
+
 from Person import Person
 import Functions
+import FormulaCalculator
 from os import walk
+import time
 
 listOfUsers = []
 listOfUserId = []
 
+date = 0
+# typeOfRoom = 0
+
+hoursAtWork = 8.0
+
+waitTime = 1800  # seconds
+startWorkTime = '20:04'  # hours and minutes
+startWorkDays = [0, 1, 2, 3, 4, 5]  # Monday is 0, Tuesday is 1 ...
+
 folder_path = 'C:/Users/marke/Desktop/cache files/cache/'
+url_path = 'http://localhost:3000/api/rating/'
 
 f = []
 for (dirpath, dirnames, filenames) in walk(folder_path):
     f.extend(filenames)
     print(f)
 
-for eachFile in f:
-    print('working ............................................................................................................................................')
-    # text = f.read()
-    # Opening JSON file
-    file = open(folder_path + eachFile, )
 
-    dataFromJSON = json.load(file)
-    file.close()
+def job():
+    for eachFile in f:
+        print(
+            'Start to analyze file ............................................................................................................................................')
+        # text = f.read()
+        # Opening JSON file
+        file = open(folder_path + eachFile, )
 
-    # Implementing variables
-    listOfUsersCache = []
-    typeOfRoom = 0
-    currentUserId = 0
-    firstTime = 0
-    lastTime = 0
+        dataFromJSON = json.load(file)
+        file.close()
 
-    # Code  to recognize the room in cache
-    for item in dataFromJSON:
-        listOfUsersCache.append((item['id'], item['Date time']))
-        #     print(item)
-        if item == dataFromJSON[0]:
-            typeOfRoom = item['Room id']
-            print(typeOfRoom)
+        # Implementing variables
+        listOfUsersCache = []
+        currentUserId = 0
+        firstTime = 0
+        lastTime = 0
+        lastItem = False
 
-    for eachItem in listOfUsersCache:
-        print(eachItem)
-        # if first item from file
-        if currentUserId == 0:
-            currentUserId = eachItem[0]
-            if eachItem[0] not in listOfUserId:
-                print('wow, new id!')
-                listOfUserId.append(currentUserId)
-            firstTime = eachItem[1]
+        # listOfRooms = []
+        # listOfRoomType = []
+        typeOfRoom = 0
+        dateOfCacheFiles = 0
+
+        for item in dataFromJSON:
+            listOfUsersCache.append((item['id'], item['Date time']))
+            #     print(item)
+            if item == dataFromJSON[0]:
+                # Code to set room type to each room id
+                typeOfRoom = Functions.setRoomWithType(eachFile, url_path)
+
+                # typeOfRoom = item['Room id']
+                # print(typeOfRoom)
+
+            # Set dateOfCacheFiles
+            if dateOfCacheFiles == 0:
+                date = item['Date time'].split(' ')
+                dateOfCacheFiles = date[0]
+                print('lol')
+
+        for eachItem in listOfUsersCache:
+            print(eachItem)
+            # Check if last item
+            if eachItem == listOfUsersCache[-1]:
+                lastItem = True
+            # if first item from file
+            if currentUserId == 0:
+                currentUserId = eachItem[0]
+                if eachItem[0] not in listOfUserId:
+                    print('wow, new id!')
+                    listOfUserId.append(currentUserId)
+                firstTime = eachItem[1]
+                lastTime = eachItem[1]
+
+            if len(listOfUsers) == 0:
+                Functions.addNewUserInfoToListOfUsers(typeOfRoom, listOfUsers, currentUserId, lastTime)
+
+            # Functions.changeUserLastTimeFromListOfUsers(typeOfRoom, listOfUsers, currentUserId, lastTime)
+            # Check if it is not first item from file  AND  if we got new user id in the item
+            if eachItem[0] != currentUserId and len(listOfUsers) != 0: # and lastItem is False
+                # Get the difference from first and last value with same user id from current item in file
+                # print('First time:', firstTime)
+                # print('Last time:', lastTime)
+                difference = Functions.findDifference(firstTime, lastTime)
+                # print('Difference:', difference)
+                # difference = difference.total_seconds()
+                # print('Difference in seconds:', difference)
+                # Check if got the same user id before
+                if currentUserId not in listOfUserId:
+                    # Add new user to listOfUsers
+                    listOfUserId.append(currentUserId)
+
+                    Functions.addNewUserInfoToListOfUsers(typeOfRoom, listOfUsers, currentUserId, lastTime)
+                    print('wow, new id!')
+                # Now we set the difference time to exactly right typeOfRoom to the user in listOfUsers
+                Functions.addTime(typeOfRoom, waitTime, listOfUsers, currentUserId, difference, firstTime, lastTime, lastItem, listOfUsersCache[0])
+                # last sets after we got new User id in the item
+                currentUserId = eachItem[0]
+                # if eachItem != listOfUsersCache[-2] and eachItem != listOfUsersCache[-1]:
+                firstTime = eachItem[1]
+
+            # if last item from file
+            if lastItem is True:
+                print('last value', eachItem[1])
+
+                # if listOfUsersCache[0] != listOfUsersCache[-1]:
+                print('first diff')
+                # set some variables for calculations for last item
+                currentUserId = eachItem[0]
+                lastTime = eachItem[1]
+                # Now we set the difference time to exactly right typeOfRoom to the user in listOfUsers
+                difference = Functions.findDifference(firstTime, lastTime)  # .total_seconds()
+                print('second diff')
+                Functions.addTime(typeOfRoom, waitTime, listOfUsers, currentUserId, difference, firstTime, lastTime, lastItem, listOfUsersCache[0])
+
             lastTime = eachItem[1]
-        if len(listOfUsers) == 0:
-            # object
-            # listOfUsers.append(Person(currentUserId, 0, 0))
-            # dictionary
-            listOfUsers.append(dict({'User id': currentUserId, 'Time': {'On work': 0, 'On rest': 0}}))
 
-        # Check if it is not first item from file  AND  if we got new user id in the item
-        if eachItem[0] != currentUserId and eachItem != listOfUsersCache[-1] and len(listOfUsers) != 0:
-            # Get the difference from first and last value with same user id from current item in file
-            print('First time:', firstTime)
-            print('Last time:', lastTime)
-            difference = Functions.findDifference(firstTime, lastTime)
-            print('Difference:', difference)
-            difference = difference.total_seconds()
-            print('Difference in seconds:', difference)
-            # Check if got the same user id before
-            if currentUserId not in listOfUserId:
-                # Add new user to listOfUsers
-                listOfUserId.append(currentUserId)
-                listOfUsers.append(dict({'User id': currentUserId, 'Time': {'On work': 0, 'On rest': 0}}))
-                print('wow, new id!')
+    # Final steps
+    Functions.changeUserRatingByControlQuastion(listOfUsers, dateOfCacheFiles, url_path)
+    for user in listOfUsers:
+        user['Rating'] = FormulaCalculator.calculateByFormula(hoursAtWork, user)
 
-            # Now we set the difference time to exactly right typeOfRoom to the user in listOfUsers
-
-            if typeOfRoom == 1:
-                for userInfo in listOfUsers:
-                    if userInfo['User id'] == currentUserId: #and userInfo['Time']['On work'] == 0:
-                        userInfo['Time']['On work'] += difference
-            if typeOfRoom == 2:
-                for userInfo in listOfUsers:
-                    if userInfo['User id'] == currentUserId: #and userInfo['Time']['On work'] == 0:
-                        userInfo['Time']['On rest'] += difference
-
-            # last sets after we got new User id in the item
-            currentUserId = eachItem[0]
-            if eachItem != listOfUsersCache[-1]:
-                    firstTime = eachItem[1]
-
-        # if last item from file
-        if eachItem == listOfUsersCache[-1]:
-            print('last value')
-            # set some variables for calculations for last item
-            lastTime = eachItem[1]
-            difference = Functions.findDifference(firstTime, lastTime).total_seconds()
-
-            # Now we set the difference time to exactly right typeOfRoom to the user in listOfUsers
-
-            if typeOfRoom == 1:
-                for userInfo in listOfUsers:
-                    if userInfo['User id'] == currentUserId: #and userInfo['Time']['On work'] == 0:
-                        userInfo['Time']['On work'] += difference
-            if typeOfRoom == 2:
-                for userInfo in listOfUsers:
-                    if userInfo['User id'] == currentUserId: #and userInfo['Time']['On work'] == 0:
-                        userInfo['Time']['On rest'] += difference
-
-        lastTime = eachItem[1]
-    # Final step
     Functions.saveIntoOutputFile(listOfUsers)
+
+    Functions.setNewDataAboutUserToDB(listOfUsers, dateOfCacheFiles, url_path)
+    for i in listOfUsers:
+        print(i)
+
+# Start work by time and day
+
+# jobTime = str(datetime.datetime.strptime(startWorkTime, '%H:%M').time())
+# a = jobTime.split(':')
+# jobTime = a[0] + ':' + a[1]
+# day = ''
+# while True:
+#     timeNow = datetime.datetime.now().strftime('%H:%M')
+#     dayOfTheWeekNow = datetime.datetime.now().weekday()
+#
+#     if str(timeNow) == jobTime and dayOfTheWeekNow in startWorkDays and day != dayOfTheWeekNow:
+#         job()
+#     time.sleep(60)
+#     day = dayOfTheWeekNow
+
+
+job()
+# for user in listOfUsers:
+#     user['Rating'] = FormulaCalculator.calculateByFormula(hoursAtWork, user)
+# Functions.saveIntoOutputFile(listOfUsers)
+# Functions.setNewDataAboutUserToDB(listOfUsers, date)
